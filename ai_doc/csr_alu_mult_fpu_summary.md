@@ -154,11 +154,40 @@ FPNEW 通用枚举还包含 `F2F/CPKAB/CPKCD` 以及 FP64/FP16/FP16ALT/FP8/vecto
 - `C_XF16/C_XF16ALT/C_XF8=0`，只启用 FP32。
 - FPU 输入输出宽度为 32 位，因此不会把一个 32 位字拆成 2xFP16 或 4xFP8。
 
-如果修改包常量启用 FPNEW 的非默认扩展，decoder/FPNEW 里存在以下拆分设计：
+如果修改包常量启用 FPNEW 的非默认扩展，decoder/FPNEW 里存在精度拆分设计。拆分由 `cv32e40p_fp_wrapper.sv` 中的 `FPU_FEATURES` 和 `FPU_IMPLEMENTATION` 决定：
+
+- `Width = C_FLEN`：本核在有 RVF、无 RVD 时为 32 位数据通路。
+- `EnableVectors = C_XFVEC`：只有该参数为 1 时，upper lanes 才真正参与 vectorial FP 运算。
+- `FpFmtMask = {C_RVF, C_RVD, C_XF16, C_XF8, C_XF16ALT}`：决定 FP32/FP64/FP16/FP8/FP16ALT 哪些格式生成。
+- `UnitTypes`：本 wrapper 配置为 ADDMUL=MERGED、DIVSQRT=MERGED、NONCOMP=PARALLEL、CONV=MERGED。
+
+在 `Width=32` 且启用 `C_XFVEC`、`C_XF16`、`C_XF8` 时，拆分不是把一个 IEEE FP32 数值拆成更低精度，而是把同一个 32 位寄存器/数据通路按较窄格式解释为 packed vector：
 
 - FP16/FP16ALT：32 位通路可容纳 2 个 16 位 lane。
 - FP8：32 位通路可容纳 4 个 8 位 lane。
 - vectorial FP 指令支持 add/sub/mul/div/min/max/sqrt/mac、move/classify、FP/INT 转换、FP/FP 转换、sgnj、compare、pack 等。
+
+lane 的位布局如下：
+
+- FP32 scalar/vector format：lane0 = bits `[31:0]`，只有 1 个 lane。
+- FP16/FP16ALT：lane0 = bits `[15:0]`，lane1 = bits `[31:16]`。
+- FP8：lane0 = bits `[7:0]`，lane1 = bits `[15:8]`，lane2 = bits `[23:16]`，lane3 = bits `[31:24]`。
+
+FPNEW 在 multi-format slice 中用 `max_num_lanes(Width, FpFmtMask, EnableVectors)` 决定最大 lane 数；若 FP8 启用且 `Width=32`，最大为 4 lane。`get_lane_formats()` 会按 lane 号筛出该 lane 能承载的格式。若同时启用 FP32、FP16/FP16ALT、FP8，典型 active format mask 是：
+
+- lane0：可承载 FP32、FP16/FP16ALT、FP8。
+- lane1：可承载 FP16/FP16ALT、FP8。
+- lane2/lane3：只承载 FP8。
+
+资源复用需要按 operation group 分开看：
+
+- ADDMUL 组为 `MERGED`，即 `fadd/fsub/fmul/fmadd` 等走 `fpnew_opgroup_multifmt_slice`。每个 active lane 内实例化一个 `fpnew_fma_multi`，该 lane 内复用同一套多格式 FMA 数据通路：分类器、特殊值处理、指数差/对齐、尾数乘法器、加法器、规格化、舍入和输出流水。lane0 的这套资源既可做 scalar FP32，也可做 FP16 lane0 或 FP8 lane0；lane1/2/3 是为了并行处理 upper lanes 而额外生成的独立 lane-local 资源，不是把 lane0 的 FP32 乘法器在同一周期切分成多个 FP8 乘法器。
+- CONV 组为 `MERGED`，FP/INT 转换、FP/FP 转换和 pack 类操作走 `fpnew_cast_multi`。复用方式与 ADDMUL 类似：同一 lane 内多格式转换数据通路复用，多个 vector lane 之间是并行实例。
+- DIVSQRT 组配置为 `MERGED`，理论上 multi-format/vector divsqrt 会按 lane 实例化 `fpnew_divsqrt_multi` 并在 lanes 间同步 ready/done；但本 wrapper 固定 `.PulpDivsqrt(1'b0)`，此时 `fpnew_opgroup_multifmt_slice` 明确只支持 FP32-only 的 T-Head/OpenE906 divsqrt。如果要同时启用 FP16/FP8 的 DIV/SQRT，需要改用支持多格式的 PULP divsqrt 路径，即 `PulpDivsqrt=1`，否则多格式配置会在 elaboration 时报错。
+- NONCOMP 组为 `PARALLEL`，即 `sgnj/minmax/cmp/classify` 这类非计算操作不是跨格式 merged 复用，而是每个启用格式生成独立 `fpnew_opgroup_fmt_slice`。同一格式内部仍会按 FP16/FP8 lane 并行生成 lane-local `fpnew_noncomp`，但 FP32、FP16、FP8 之间没有共享同一个 noncomp 数据通路。
+- 所有组共享顶层调度、operand slicing、result packing、status OR-reduction、valid/ready 汇聚等外围逻辑；真正的数值计算资源是否共享由上述 `UnitTypes` 决定。
+
+因此，所谓 FP32 拆成 2 个 FP16 或 4 个 FP8 lane 时，准确说法是：32 位 FLEN 容器被按较窄格式分 lane 并行计算；lane0 的 multi-format 计算资源可在不同指令/格式间复用，但同一条 vector FP16/FP8 指令的多个 lane 需要各自的 lane-local 计算资源来并行完成。
 
 但这不是当前 CV32E40P 默认配置的行为。
 
