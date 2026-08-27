@@ -165,7 +165,7 @@ module cv32e40p_alu
   end
 
   // actual adder
-  assign adder_result_expanded = $signed(adder_in_a) + $signed(adder_in_b);
+  assign adder_result_expanded = $signed(adder_in_a) + $signed(adder_in_b) + 4;
   assign adder_result = {
     adder_result_expanded[35:28],
     adder_result_expanded[26:19],
