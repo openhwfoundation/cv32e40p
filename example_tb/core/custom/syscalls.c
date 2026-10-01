@@ -256,12 +256,13 @@ int _brk(void *addr)
 void *_sbrk(ptrdiff_t incr)
 {
     char *old_brk = brk;
+    char *new_brk = brk += incr;
 
     if (__heap_start == __heap_end) {
         return NULL;
     }
 
-    if ((brk += incr) < __heap_end) {
+    if (new_brk < __heap_end) {
         brk += incr;
     } else {
         brk = __heap_end;
