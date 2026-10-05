@@ -169,7 +169,7 @@ module cv32e40p_register_file #(
   // Integer registers
   always_latch begin : latch_wdata
     // Note: The assignment has to be done inside this process or Modelsim complains about it
-    mem[0] = '0;
+    mem[0] <= '0;
 
     for (k = 1; k < NUM_WORDS; k++) begin : w_WordIter
       if (~rst_n) mem[k] <= '0;
