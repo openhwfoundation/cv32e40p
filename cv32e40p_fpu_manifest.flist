@@ -74,6 +74,7 @@ ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/vendor/opene906/E906_RTL_FACTORY/ge
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_frbus.v
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_src_type.v
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/src/fpnew_divsqrt_th_32.sv
+${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/src/fpnew_divsqrt_multi.sv
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/src/fpnew_classifier.sv
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/src/fpnew_rounding.sv
 ${DESIGN_RTL_DIR}/vendor/pulp_platform_fpnew/src/fpnew_cast_multi.sv
