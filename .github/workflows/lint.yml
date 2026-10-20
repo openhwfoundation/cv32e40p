@@ -16,7 +16,7 @@ jobs:
   format_verilog:
     name: Format Verilog Sources
     # This job runs on Linux (fixed ubuntu version)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
