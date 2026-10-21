@@ -107,8 +107,8 @@ bind cv32e40p_ex_stage cv32e40p_EX_assert u_cv32e40p_EX_assert (
 );
 
 bind cv32e40p_controller cv32e40p_controller_assert u_cv32e40p_controller_assert (
-    .clk_i (clk_i ),
-    .rst_ni(rst_ni),
+    .clk_i (clk   ),
+    .rst_ni(rst_n ),
 
     .data_load_event_i    (data_load_event_i    ),
     .trigger_match_i      (trigger_match_i      ),
