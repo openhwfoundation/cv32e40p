@@ -64,9 +64,11 @@ module cv32e40p_controller_assert import cv32e40p_pkg::*;
             ((ctrl_fsm_cs == DBG_FLUSH) && !data_err_i) && (~debug_req_entry_q && ~((debug_mode_q | trigger_match_i) | (ebrk_force_debug_mode & ebrk_insn_i))) |-> !data_load_event_i;
     endproperty
 
-    // Issue #1010: controller line 850 (and 852-887). dcsr.step can only change through dret, which
-    // returns to DECODE, or through a CSR write, which flushes the pipeline back to DECODE. In DECODE
-    // the single-step check halts before DECODE_HWLOOP can be entered.
+    // Issue #1010: the controller never enters DECODE_HWLOOP while single-step is on and
+    // the core is not in debug mode. A CSR write to dcsr.step flushes the pipeline back to
+    // DECODE. dret returns to DECODE and clears debug_mode_q, which makes an already-set
+    // step bit effective outside debug mode. In DECODE, the single-step check halts before
+    // DECODE_HWLOOP can be entered.
     property unreachable_ctrl_850;
         @(posedge clk_i) disable iff(!rst_ni)
             (ctrl_fsm_cs == DECODE_HWLOOP) |-> ~(debug_single_step_i & ~debug_mode_q);
