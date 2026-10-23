@@ -92,6 +92,7 @@ module fpnew_opgroup_block #(
 
     // Generate slice only if format enabled
     if (FpFmtMask[fmt] && (FmtUnitTypes[fmt] == fpnew_pkg::PARALLEL)) begin : active_format
+      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
 
       logic in_valid;
 
@@ -103,14 +104,14 @@ module fpnew_opgroup_block #(
       always_comb for (int b = 0; b < INTERNAL_LANES; b++) mask_slice[b] = simd_mask_i[(NUM_LANES/INTERNAL_LANES)*b];
 
       fpnew_opgroup_fmt_slice #(
-        .OpGroup       ( OpGroup                      ),
-        .FpFormat      ( fpnew_pkg::fp_format_e'(fmt) ),
-        .Width         ( Width                        ),
-        .EnableVectors ( EnableVectors                ),
-        .NumPipeRegs   ( FmtPipeRegs[fmt]             ),
-        .PipeConfig    ( PipeConfig                   ),
-        .TagType       ( TagType                      ),
-        .TrueSIMDClass ( TrueSIMDClass                )
+        .OpGroup       ( OpGroup          ),
+        .FpFormat      ( FpFormat         ),
+        .Width         ( Width            ),
+        .EnableVectors ( EnableVectors    ),
+        .NumPipeRegs   ( FmtPipeRegs[fmt] ),
+        .PipeConfig    ( PipeConfig       ),
+        .TagType       ( TagType          ),
+        .TrueSIMDClass ( TrueSIMDClass    )
       ) i_fmt_slice (
         .clk_i,
         .rst_ni,
