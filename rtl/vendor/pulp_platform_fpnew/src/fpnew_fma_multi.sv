@@ -188,12 +188,13 @@ module fpnew_fma_multi #(
     localparam int unsigned MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::fp_format_e'(fmt));
 
     if (FpFmtConfig[fmt]) begin : active_format
+      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
       logic [2:0][FP_WIDTH-1:0] trimmed_ops;
 
       // Classify input
       fpnew_classifier #(
-        .FpFormat    ( fpnew_pkg::fp_format_e'(fmt) ),
-        .NumOperands ( 3                            )
+        .FpFormat    ( FpFormat ),
+        .NumOperands ( 3        )
       ) i_fpnew_classifier (
         .operands_i ( trimmed_ops                            ),
         .is_boxed_i ( inp_pipe_is_boxed_q[NUM_INP_REGS][fmt] ),

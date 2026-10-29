@@ -4,6 +4,7 @@
 {
   name: "pulp_platform_fpnew",
   target_dir: "pulp_platform_fpnew",
+  patch_dir: "patches/pulp_platform_fpnew",
 
   upstream: {
     url: "https://github.com/pulp-platform/fpnew.git",
