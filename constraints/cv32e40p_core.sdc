@@ -134,8 +134,11 @@ create_clock \
 
 set all_clock_ports $clock_ports
 
-set all_other_input_ports  [remove_from_collection [all_inputs]  [get_ports [list $all_clock_ports $obi_input_ports $irq_input_ports $early_input_ports]]]
-set all_other_output_ports [remove_from_collection [all_outputs] [get_ports [list $all_clock_ports $obi_output_ports $sleep_output_ports $irq_output_ports]]]
+set all_other_input_ports [remove_from_collection [all_inputs] \
+    [get_ports [concat $all_clock_ports $obi_input_ports \
+        [get_object_name $irq_input_ports] $early_input_ports]]]
+set all_other_output_ports [remove_from_collection [all_outputs] \
+    [get_ports [concat $all_clock_ports $obi_output_ports $sleep_output_ports $irq_output_ports]]]
 
 # IRQs
 set_input_delay  $in_delay_irq          [get_ports $irq_input_ports        ] -clock clk_i
