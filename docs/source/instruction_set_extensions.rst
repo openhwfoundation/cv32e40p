@@ -609,7 +609,7 @@ Bit Manipulation operations
   |                                             |                                                                                                                                          |
   |                                             | The rest of the bits of rD are untouched and keep their previous value.                                                                  |
   |                                             |                                                                                                                                          |
-  |                                             | Is3 + Is2 must be < 32.                                                                                                                  |
+  |                                             | rs2[9:5] + rs2[4:0] must be < 32.                                                                                                        |
   +---------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+
   | **cv.bclr rD, rs1, Is3, Is2**               | rD[min(Is3+Is2,31):Is2] bits set to 0                                                                                                    |
   |                                             |                                                                                                                                          |

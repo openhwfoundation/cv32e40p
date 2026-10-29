@@ -234,9 +234,8 @@ The CV32E40P core is fully synthesizable.
 It has been designed mainly for ASIC designs, but FPGA synthesis is supported as well.
 
 The top level module is called cv32e40p_top and includes both the core and the FPU.
-All the core files are in ``rtl`` and ``rtl/include`` folders (all synthesizable)
-while all the FPU files are in ``rtl/vendor/pulp_platform_common_cells``, ``rtl/vendor/pulp_platform_fpnew`` and ``rtl/vendor/pulp_platform_fpu_div_sqrt``.
-.. while all the FPU files are in ``rtl/vendor/pulp_platform_common_cells``, ``rtl/vendor/pulp_platform_fpnew`` and ``rtl/vendor/opene906``.
+All the core files are in ``rtl`` folder (all synthesizable)
+while all the FPU files are in ``rtl/vendor/pulp_platform_common_cells``, ``rtl/vendor/pulp_platform_fpnew`` and ``rtl/vendor/opene906``.
 cv32e40p_fpu_manifest.flist is listing all the required files.
 
 The user must provide a clock-gating module that instantiates the functionally equivalent clock-gating cell of the target technology.
