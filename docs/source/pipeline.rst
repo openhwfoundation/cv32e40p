@@ -143,16 +143,23 @@ The cycle counts assume zero stall on the instruction-side interface and zero st
   |                        | 3 (target is a non-word-aligned      | jump to the instruction following the fence. The jump       |
   |                        | non-RVC instruction)                 | performs the required flushing as described above.          |
   +------------------------+--------------------------------------+-------------------------------------------------------------+
-  | Floating-Point         | 1..FPU_ADDMUL_LAT + 1                | Floating-Point instructions are dispatched to the FPU.      |
-  | Addition or            |                                      | Following instructions can be executed by the Core as long  |
-  | Multiplication         |                                      | as they are not FPU ones and there are no Read-After-Write  |
-  +------------------------+--------------------------------------+ or Write-After-Write data hazard between them and the       |
-  | Floating-Point         | 1..FPU_OTHERS_LAT + 1                | destination register of the outstanding FPU instruction.    |
-  | Comparison, Conversion |                                      | If there are enough instructions between FPU one and        |
-  | or Classify            |                                      | the instruction using the result then cycle number is 1.    |
-  +------------------------+--------------------------------------+ "Enough instruction" number is either FPU_ADDMUL_LAT,       |
-  | Single Precision       | 1..19                                | FPU_OTHERS_LAT or 19.                                       |
-  | Floating-Point         |                                      | If there are no instruction in between then cycle number is |
-  | Division and           |                                      | the maximum value for each category.                        |
+  | Floating-Point         | 1..FPU_ADDMUL_LAT + 1                | Independent instructions with the same latency can start    |
+  | Addition or            |                                      | each cycle when FPU_ADDMUL_LAT is 0 or 1. With              |
+  | Multiplication         |                                      | FPU_ADDMUL_LAT >= 2, subsequent FPU instructions wait for   |
+  |                        |                                      | completion.                                                 |
+  +------------------------+--------------------------------------+-------------------------------------------------------------+
+  | Floating-Point         | 1..FPU_OTHERS_LAT + 1                | Independent instructions with the same latency can start    |
+  | Comparison, Conversion |                                      | each cycle when FPU_OTHERS_LAT is 0 or 1. With              |
+  | or Classify            |                                      | FPU_OTHERS_LAT >= 2, subsequent FPU instructions wait for   |
+  |                        |                                      | completion.                                                 |
+  +------------------------+--------------------------------------+-------------------------------------------------------------+
+  | Single Precision       | 1..19                                | FDIV.S and FSQRT.S are not pipelined. Subsequent FPU        |
+  | Floating-Point         |                                      | instructions wait for completion. Their cycle counts depend |
+  | Division and           |                                      | on the operand values.                                      |
   | Square-Root            |                                      |                                                             |
   +------------------------+--------------------------------------+-------------------------------------------------------------+
+
+These FPU issue limits apply even when consecutive instructions use different registers.
+Independent integer instructions can execute while an FPU result is pending.
+Instructions that use the result must wait for it. Switching between FPU instruction
+latencies can also introduce additional stalls.
