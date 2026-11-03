@@ -103,6 +103,13 @@ module fpnew_top #(
   // -------------------------
   for (genvar opgrp = 0; opgrp < int'(NUM_OPGROUPS); opgrp++) begin : gen_operation_groups
     localparam int unsigned NUM_OPS = fpnew_pkg::num_operands(fpnew_pkg::opgroup_e'(opgrp));
+    localparam fpnew_pkg::opgroup_e OpGroup = fpnew_pkg::opgroup_e'(opgrp);
+    localparam logic EnableVectors = Features.EnableVectors;
+    localparam fpnew_pkg::fmt_logic_t FpFmtMask = Features.FpFmtMask;
+    localparam fpnew_pkg::ifmt_logic_t IntFmtMask = Features.IntFmtMask;
+    localparam fpnew_pkg::fmt_unsigned_t FmtPipeRegs = Implementation.PipeRegs[opgrp];
+    localparam fpnew_pkg::fmt_unit_types_t FmtUnitTypes = Implementation.UnitTypes[opgrp];
+    localparam fpnew_pkg::pipe_config_t PipeConfig = Implementation.PipeConfig;
 
     logic in_valid;
     logic [NUM_FORMATS-1:0][NUM_OPS-1:0] input_boxed;
@@ -116,17 +123,17 @@ module fpnew_top #(
     end
 
     fpnew_opgroup_block #(
-      .OpGroup       ( fpnew_pkg::opgroup_e'(opgrp)    ),
-      .Width         ( WIDTH                           ),
-      .EnableVectors ( Features.EnableVectors          ),
-      .PulpDivsqrt   ( PulpDivsqrt                     ),
-      .FpFmtMask     ( Features.FpFmtMask              ),
-      .IntFmtMask    ( Features.IntFmtMask             ),
-      .FmtPipeRegs   ( Implementation.PipeRegs[opgrp]  ),
-      .FmtUnitTypes  ( Implementation.UnitTypes[opgrp] ),
-      .PipeConfig    ( Implementation.PipeConfig       ),
-      .TagType       ( TagType                         ),
-      .TrueSIMDClass ( TrueSIMDClass                   )
+      .OpGroup       ( OpGroup       ),
+      .Width         ( WIDTH         ),
+      .EnableVectors ( EnableVectors ),
+      .PulpDivsqrt   ( PulpDivsqrt   ),
+      .FpFmtMask     ( FpFmtMask     ),
+      .IntFmtMask    ( IntFmtMask    ),
+      .FmtPipeRegs   ( FmtPipeRegs   ),
+      .FmtUnitTypes  ( FmtUnitTypes  ),
+      .PipeConfig    ( PipeConfig    ),
+      .TagType       ( TagType       ),
+      .TrueSIMDClass ( TrueSIMDClass )
     ) i_opgroup_block (
       .clk_i,
       .rst_ni,

@@ -1,0 +1,134 @@
+From 0197f718810363af42f5296c95993b2c1f6c42d8 Mon Sep 17 00:00:00 2001
+From: Michael Platzer <michael.platzer@axelera.ai>
+Date: Tue, 11 Jun 2024 18:16:24 +0000
+Subject: [PATCH] Avoid type casts and member access in parameter assignments
+
+Upstream: https://github.com/openhwfoundation/cvfpu/pull/127
+SPDX-License-Identifier: SHL-0.51
+
+Backported to the pinned CVFPU revision without changing PulpDivsqrt.
+
+Some tools have issues when performing type casts or accessing members
+of a struct in the parameter assignments of a module instantiation.
+
+diff --git a/src/fpnew_cast_multi.sv b/src/fpnew_cast_multi.sv
+index 7abe330..04692ca 100644
+--- a/src/fpnew_cast_multi.sv
++++ b/src/fpnew_cast_multi.sv
+@@ -204,10 +204,12 @@ module fpnew_cast_multi #(
+     localparam int unsigned MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::fp_format_e'(fmt));
+
+     if (FpFmtConfig[fmt]) begin : active_format
++      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
++
+       // Classify input
+       fpnew_classifier #(
+-        .FpFormat    ( fpnew_pkg::fp_format_e'(fmt) ),
+-        .NumOperands ( 1                            )
++        .FpFormat    ( FpFormat ),
++        .NumOperands ( 1        )
+       ) i_fpnew_classifier (
+         .operands_i ( operands_q[FP_WIDTH-1:0] ),
+         .is_boxed_i ( is_boxed_q[fmt]          ),
+diff --git a/src/fpnew_fma_multi.sv b/src/fpnew_fma_multi.sv
+index 471d966..07c3a94 100644
+--- a/src/fpnew_fma_multi.sv
++++ b/src/fpnew_fma_multi.sv
+@@ -188,12 +188,13 @@ module fpnew_fma_multi #(
+     localparam int unsigned MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::fp_format_e'(fmt));
+
+     if (FpFmtConfig[fmt]) begin : active_format
++      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
+       logic [2:0][FP_WIDTH-1:0] trimmed_ops;
+
+       // Classify input
+       fpnew_classifier #(
+-        .FpFormat    ( fpnew_pkg::fp_format_e'(fmt) ),
+-        .NumOperands ( 3                            )
++        .FpFormat    ( FpFormat ),
++        .NumOperands ( 3        )
+       ) i_fpnew_classifier (
+         .operands_i ( trimmed_ops                            ),
+         .is_boxed_i ( inp_pipe_is_boxed_q[NUM_INP_REGS][fmt] ),
+diff --git a/src/fpnew_opgroup_block.sv b/src/fpnew_opgroup_block.sv
+index d8611d9..e0c6f6b 100644
+--- a/src/fpnew_opgroup_block.sv
++++ b/src/fpnew_opgroup_block.sv
+@@ -92,6 +92,7 @@ module fpnew_opgroup_block #(
+
+     // Generate slice only if format enabled
+     if (FpFmtMask[fmt] && (FmtUnitTypes[fmt] == fpnew_pkg::PARALLEL)) begin : active_format
++      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
+
+       logic in_valid;
+
+@@ -103,14 +104,14 @@ module fpnew_opgroup_block #(
+       always_comb for (int b = 0; b < INTERNAL_LANES; b++) mask_slice[b] = simd_mask_i[(NUM_LANES/INTERNAL_LANES)*b];
+
+       fpnew_opgroup_fmt_slice #(
+-        .OpGroup       ( OpGroup                      ),
+-        .FpFormat      ( fpnew_pkg::fp_format_e'(fmt) ),
+-        .Width         ( Width                        ),
+-        .EnableVectors ( EnableVectors                ),
+-        .NumPipeRegs   ( FmtPipeRegs[fmt]             ),
+-        .PipeConfig    ( PipeConfig                   ),
+-        .TagType       ( TagType                      ),
+-        .TrueSIMDClass ( TrueSIMDClass                )
++        .OpGroup       ( OpGroup          ),
++        .FpFormat      ( FpFormat         ),
++        .Width         ( Width            ),
++        .EnableVectors ( EnableVectors    ),
++        .NumPipeRegs   ( FmtPipeRegs[fmt] ),
++        .PipeConfig    ( PipeConfig       ),
++        .TagType       ( TagType          ),
++        .TrueSIMDClass ( TrueSIMDClass    )
+       ) i_fmt_slice (
+         .clk_i,
+         .rst_ni,
+diff --git a/src/fpnew_top.sv b/src/fpnew_top.sv
+index a6ff89a..9cd16b3 100644
+--- a/src/fpnew_top.sv
++++ b/src/fpnew_top.sv
+@@ -103,6 +103,13 @@ module fpnew_top #(
+   // -------------------------
+   for (genvar opgrp = 0; opgrp < int'(NUM_OPGROUPS); opgrp++) begin : gen_operation_groups
+     localparam int unsigned NUM_OPS = fpnew_pkg::num_operands(fpnew_pkg::opgroup_e'(opgrp));
++    localparam fpnew_pkg::opgroup_e OpGroup = fpnew_pkg::opgroup_e'(opgrp);
++    localparam logic EnableVectors = Features.EnableVectors;
++    localparam fpnew_pkg::fmt_logic_t FpFmtMask = Features.FpFmtMask;
++    localparam fpnew_pkg::ifmt_logic_t IntFmtMask = Features.IntFmtMask;
++    localparam fpnew_pkg::fmt_unsigned_t FmtPipeRegs = Implementation.PipeRegs[opgrp];
++    localparam fpnew_pkg::fmt_unit_types_t FmtUnitTypes = Implementation.UnitTypes[opgrp];
++    localparam fpnew_pkg::pipe_config_t PipeConfig = Implementation.PipeConfig;
+
+     logic in_valid;
+     logic [NUM_FORMATS-1:0][NUM_OPS-1:0] input_boxed;
+@@ -116,17 +123,17 @@ module fpnew_top #(
+     end
+
+     fpnew_opgroup_block #(
+-      .OpGroup       ( fpnew_pkg::opgroup_e'(opgrp)    ),
+-      .Width         ( WIDTH                           ),
+-      .EnableVectors ( Features.EnableVectors          ),
+-      .PulpDivsqrt   ( PulpDivsqrt                     ),
+-      .FpFmtMask     ( Features.FpFmtMask              ),
+-      .IntFmtMask    ( Features.IntFmtMask             ),
+-      .FmtPipeRegs   ( Implementation.PipeRegs[opgrp]  ),
+-      .FmtUnitTypes  ( Implementation.UnitTypes[opgrp] ),
+-      .PipeConfig    ( Implementation.PipeConfig       ),
+-      .TagType       ( TagType                         ),
+-      .TrueSIMDClass ( TrueSIMDClass                   )
++      .OpGroup       ( OpGroup       ),
++      .Width         ( WIDTH         ),
++      .EnableVectors ( EnableVectors ),
++      .PulpDivsqrt   ( PulpDivsqrt   ),
++      .FpFmtMask     ( FpFmtMask     ),
++      .IntFmtMask    ( IntFmtMask    ),
++      .FmtPipeRegs   ( FmtPipeRegs   ),
++      .FmtUnitTypes  ( FmtUnitTypes  ),
++      .PipeConfig    ( PipeConfig    ),
++      .TagType       ( TagType       ),
++      .TrueSIMDClass ( TrueSIMDClass )
+     ) i_opgroup_block (
+       .clk_i,
+       .rst_ni,
