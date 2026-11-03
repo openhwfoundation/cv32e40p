@@ -916,8 +916,11 @@ module cv32e40p_id_stage
   endgenerate
 
   assign apu_perf_dep_o = apu_stall;
-  // stall when we access the CSR after a multicycle APU instruction
-  assign csr_apu_stall  = (csr_access & (apu_en_ex_o & (apu_lat_ex_o[1] == 1'b1) | apu_busy_i));
+  // stall when we access the CSR after a multicycle APU instruction or
+  // if a CSR access comes after a floating-point load (e.g., FLW) - we could stall only on MSTATUS CSR access but
+  // being conservative here
+  assign csr_apu_stall  = (csr_access & ((apu_en_ex_o & (apu_lat_ex_o[1] == 1'b1) | apu_busy_i) |
+                                         (data_req_ex_o & ~data_we_ex_o & regfile_waddr_ex_o[5])));
 
   /////////////////////////////////////////////////////////
   //  ____  _____ ____ ___ ____ _____ _____ ____  ____   //

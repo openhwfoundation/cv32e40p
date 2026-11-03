@@ -1369,7 +1369,8 @@ endgenerate
         (((regfile_we_wb_i == 1'b1) && (reg_d_wb_is_reg_a_i == 1'b1)) ||
          ((regfile_we_ex_i == 1'b1) && (reg_d_ex_is_reg_a_i == 1'b1)) ||
          ((regfile_alu_we_fw_i == 1'b1) && (reg_d_alu_is_reg_a_i == 1'b1)) ||
-         (FPU && (apu_read_dep_for_jalr_i == 1'b1))
+         ((FPU == 1) && (apu_read_dep_for_jalr_i == 1'b1))
+
         )
        )
     begin

@@ -138,8 +138,8 @@ module cv32e40p_tb_wrapper
 
 `ifdef CV32E40P_APU_TRACE
   cv32e40p_apu_tracer apu_tracer_i (
-      .clk_i       (cv32e40p_top_i.core_i.rst_ni),
-      .rst_n       (cv32e40p_top_i.core_i.clk_i),
+      .clk_i       (cv32e40p_top_i.core_i.clk_i),
+      .rst_n       (cv32e40p_top_i.core_i.rst_ni),
       .hart_id_i   (cv32e40p_top_i.core_i.hart_id_i),
       .apu_valid_i (cv32e40p_top_i.core_i.ex_stage_i.apu_valid),
       .apu_waddr_i (cv32e40p_top_i.core_i.ex_stage_i.apu_waddr),
