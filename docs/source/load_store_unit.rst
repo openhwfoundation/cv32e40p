@@ -66,6 +66,9 @@ transactions for the following scenarios:
 
 In both cases the transfer corresponding to the lowest address is performed first. All other scenarios can be handled with a single bus transaction.
 
+Misaligned accesses that require two bus transactions are not guaranteed to be atomic.
+Other bus masters can observe or modify memory between the two transactions.
+
 Protocol
 --------
 
