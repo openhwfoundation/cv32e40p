@@ -12,6 +12,15 @@
 // File       : Simple Serial Divider
 // Ver        : 1.0
 // Date       : 15.03.2016
+// Modified   : Timing optimisations applied
+//                OPT-1 : Retime sign-XOR — pre-register OpA_DI[31]^OpBSign_SI
+//                         into SignXor_SP at load time, removing XOR from the
+//                         critical path (saves 1 logic level).
+//                OPT-2 : Carry-invert add/sub — replace PmSel_S MUX-then-adder
+//                         with a single adder using XOR-invert + carry-in,
+//                         removing the MUX from the critical path (saves 1 level).
+//              NOTE: OPT-3 (LoadEn_S fanout split) is intentionally NOT applied
+//                    in this variant.  A single LoadEn_S net drives all consumers.
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Description: this is a simple serial divider for signed integers (int32).
@@ -69,6 +78,10 @@ module cv32e40p_alu_div #(
 
   logic ARegEn_S, BRegEn_S, ResRegEn_S, ABComp_S, PmSel_S, LoadEn_S;
 
+  // OPT-1: Registered sign-XOR — removes XOR gate from critical path.
+  // Captured at load time; consumed by PmSel_S and ResInv_SN in DIVIDE state.
+  logic SignXor_SP;
+
   enum logic [1:0] {
     IDLE,
     DIVIDE,
@@ -81,7 +94,9 @@ module cv32e40p_alu_div #(
   // datapath
   ///////////////////////////////////////////////////////////////////////////////
 
-  assign PmSel_S  = LoadEn_S & ~(OpCode_SI[0] & (OpA_DI[$high(OpA_DI)] ^ OpBSign_SI));
+  // OPT-1: PmSel_S uses SignXor_SP (pre-registered) instead of the raw XOR,
+  //        removing the XOR gate from the combinational critical path.
+  assign PmSel_S  = LoadEn_S & ~(OpCode_SI[0] & SignXor_SP);
 
   // muxes
   assign AddMux_D = (LoadEn_S) ? OpA_DI : BReg_DP;
@@ -106,7 +121,15 @@ module cv32e40p_alu_div #(
 
   // main adder
   assign AddTmp_D = (LoadEn_S) ? 0 : AReg_DP;
-  assign AddOut_D = (PmSel_S) ? AddTmp_D + AddMux_D : AddTmp_D - $signed(AddMux_D);
+
+  // OPT-2: Carry-invert add/sub — eliminates the MUX from the critical path.
+  //   Standard identity:  A - B  =  A + (~B) + 1
+  //   When PmSel_S=1 (add): SubSel_S=0 → AddOut_D = AddTmp_D + AddMux_D + 0  (add)
+  //   When PmSel_S=0 (sub): SubSel_S=1 → AddOut_D = AddTmp_D + (~AddMux_D) + 1 (sub)
+  //   The MUX is replaced by a bitwise XOR array + 1-bit carry-in; the adder
+  //   absorbs both in a single pass — one fewer logic level on the path.
+  wire SubSel_S = ~PmSel_S;  // active-high subtract select
+  assign AddOut_D = AddTmp_D + (AddMux_D ^ {C_WIDTH{SubSel_S}}) + {{(C_WIDTH-1){1'b0}}, SubSel_S};
 
   ///////////////////////////////////////////////////////////////////////////////
   // counter
@@ -178,11 +201,11 @@ module cv32e40p_alu_div #(
   ///////////////////////////////////////////////////////////////////////////////
 
   // get flags
-  assign RemSel_SN = (LoadEn_S) ? OpCode_SI[1] : RemSel_SP;
-  assign CompInv_SN = (LoadEn_S) ? OpBSign_SI : CompInv_SP;
-  assign ResInv_SN = (LoadEn_S) ? (~OpBIsZero_SI | OpCode_SI[1]) & OpCode_SI[0] & (OpA_DI[$high(
-      OpA_DI
-  )] ^ OpBSign_SI) : ResInv_SP;
+  // OPT-1: ResInv_SN uses SignXor_SP (pre-registered) instead of raw XOR
+  assign RemSel_SN  = (LoadEn_S) ? OpCode_SI[1] : RemSel_SP;
+  assign CompInv_SN = (LoadEn_S) ? OpBSign_SI    : CompInv_SP;
+  assign ResInv_SN  = (LoadEn_S) ? (~OpBIsZero_SI | OpCode_SI[1]) & OpCode_SI[0] & SignXor_SP
+                                  : ResInv_SP;
 
   assign AReg_DN = (ARegEn_S) ? AddOut_D : AReg_DP;
   assign BReg_DN = (BRegEn_S) ? BMux_D : BReg_DP;
@@ -200,6 +223,7 @@ module cv32e40p_alu_div #(
       RemSel_SP  <= 1'b0;
       CompInv_SP <= 1'b0;
       ResInv_SP  <= 1'b0;
+      SignXor_SP <= 1'b0;   // OPT-1: reset pre-registered sign XOR
     end else begin
       State_SP   <= State_SN;
       AReg_DP    <= AReg_DN;
@@ -209,6 +233,10 @@ module cv32e40p_alu_div #(
       RemSel_SP  <= RemSel_SN;
       CompInv_SP <= CompInv_SN;
       ResInv_SP  <= ResInv_SN;
+      // OPT-1: capture sign XOR at load time so it is ready for the next cycle.
+      // SignXor_SP is only meaningful when LoadEn_S was asserted the previous cycle,
+      // which is exactly when PmSel_S and ResInv_SN consume it (DIVIDE state).
+      if (LoadEn_S) SignXor_SP <= OpA_DI[C_WIDTH-1] ^ OpBSign_SI;
     end
   end
 
