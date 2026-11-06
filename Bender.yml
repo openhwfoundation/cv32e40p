@@ -45,7 +45,7 @@ sources:
     - rtl/cv32e40p_obi_interface.sv
     - rtl/cv32e40p_core.sv
     - rtl/cv32e40p_apu_disp.sv
-    - rtl/cv32e40p_fetch_fifo.sv
+    - rtl/cv32e40p_fifo.sv
     - rtl/cv32e40p_popcnt.sv
     - rtl/cv32e40p_ff_one.sv
     - rtl/cv32e40p_sleep_unit.sv
