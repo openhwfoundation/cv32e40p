@@ -204,10 +204,12 @@ module fpnew_cast_multi #(
     localparam int unsigned MAN_BITS = fpnew_pkg::man_bits(fpnew_pkg::fp_format_e'(fmt));
 
     if (FpFmtConfig[fmt]) begin : active_format
+      localparam fpnew_pkg::fp_format_e FpFormat = fpnew_pkg::fp_format_e'(fmt);
+
       // Classify input
       fpnew_classifier #(
-        .FpFormat    ( fpnew_pkg::fp_format_e'(fmt) ),
-        .NumOperands ( 1                            )
+        .FpFormat    ( FpFormat ),
+        .NumOperands ( 1        )
       ) i_fpnew_classifier (
         .operands_i ( operands_q[FP_WIDTH-1:0] ),
         .is_boxed_i ( is_boxed_q[fmt]          ),
